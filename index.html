@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>PM TECH Water Solutions — استمارة المعاينة الفنية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+  :root{
+    --navy:#1F2C5C;
+    --navy-ink:#161F44;
+    --green:#6FBE44;
+    --green-deep:#4C8E33;
+    --gold:#8E7A33;
+    --blue:#33628E;
+    --bg:#F5F6F8;
+    --card:#FFFFFF;
+    --ink:#1B2333;
+    --muted:#5B6472;
+    --border:#DDE2E9;
+    --border-soft:#EAEDF2;
+    --danger:#C0503E;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(23,31,62,.04), 0 8px 24px -12px rgba(23,31,62,.12);
+    --shadow-lg: 0 12px 40px -8px rgba(15,20,45,.35);
+    --font-ar: 'Tajawal', 'Segoe UI', sans-serif;
+    --font-en: 'Inter', 'Segoe UI', sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-ar);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  html[data-lang="en"] body{ font-family:var(--font-en); }
+  button{ font-family:inherit; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  [hidden]{ display:none !important; }
+
+  /* ================= LOCK SCREEN ================= */
+  .lock-screen{
+    position:fixed; inset:0; z-index:1000;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(111,190,68,.18), transparent 60%),
+      linear-gradient(155deg, var(--navy) 0%, var(--navy-ink) 65%, #0F1730 100%);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .lock-card{
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.14);
+    backdrop-filter:blur(6px);
+    border-radius:20px;
+    padding:38px 32px;
+    width:100%; max-width:380px;
+    text-align:center;
+    box-shadow:var(--shadow-lg);
+    animation:lockIn .5s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes lockIn{ from{ opacity:0; transform:translateY(16px) scale(.98);} to{opacity:1; transform:none;} }
+  .lock-card svg.mark{ width:52px; height:50px; margin-bottom:14px; }
+  .lock-card h2{ color:#fff; font-size:19px; font-weight:800; margin:0 0 4px; }
+  .lock-card p{ color:#B9C2E0; font-size:12.5px; margin:0 0 22px; line-height:1.6; }
+  .lock-input-row{ position:relative; margin-bottom:14px; }
+  .lock-input-row input{
+    width:100%; padding:13px 16px; border-radius:12px; border:1.5px solid rgba(255,255,255,.2);
+    background:rgba(255,255,255,.08); color:#fff; font-size:15px; text-align:center;
+    letter-spacing:2px;
+  }
+  .lock-input-row input::placeholder{ color:rgba(255,255,255,.4); letter-spacing:normal; }
+  .lock-input-row input:focus{ outline:none; border-color:var(--green); background:rgba(255,255,255,.12); }
+  .lock-card.shake{ animation:shakeErr .4s; }
+  @keyframes shakeErr{ 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-6px);} 80%{transform:translateX(6px);} }
+  .lock-error{ color:#FF9E8A; font-size:12px; font-weight:700; min-height:16px; margin-bottom:10px; }
+  .lock-btn{
+    width:100%; padding:13px; border-radius:12px; border:none; cursor:pointer;
+    background:var(--green); color:#0F2A08; font-weight:800; font-size:14.5px;
+    transition:background .15s ease, transform .12s ease;
+  }
+  .lock-btn:hover{ background:#7FCB57; }
+  .lock-btn:active{ transform:scale(.98); }
+  .lock-hint{ margin-top:16px; font-size:10.5px; color:rgba(255,255,255,.35); }
+
+  /* ================= App shell ================= */
+  #app{ min-height:100vh; }
+  .shell{ max-width:1180px; margin:0 auto; padding:0 20px 80px; }
+
+  header.topbar{
+    position:sticky; top:0; z-index:50;
+    background:linear-gradient(180deg, var(--navy) 0%, var(--navy-ink) 100%);
+    border-bottom:3px solid var(--green);
+  }
+  .topbar-inner{
+    max-width:1180px; margin:0 auto; padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; cursor:pointer; }
+  .brand svg{ width:40px; height:38px; flex-shrink:0; }
+  .brand-text .name{ color:#fff; font-weight:800; font-size:19px; letter-spacing:.3px; line-height:1.1; font-family:var(--font-en); }
+  .brand-text .sub{ color:#B9C2E0; font-size:11px; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; font-family:var(--font-en); }
+  .topbar-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+  .btn{
+    appearance:none; border:1px solid transparent; cursor:pointer;
+    font-size:13.5px; font-weight:700;
+    padding:9px 16px; border-radius:10px; display:inline-flex; align-items:center; gap:6px;
+    transition:transform .12s ease, background .15s ease, box-shadow .15s ease;
+    white-space:nowrap;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-ghost{ background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.18); }
+  .btn-ghost:hover{ background:rgba(255,255,255,.16); }
+  .btn-solid{ background:var(--green); color:#0F2A08; }
+  .btn-solid:hover{ background:#7FCB57; }
+  .btn-outline{ background:transparent; color:#fff; border-color:rgba(255,255,255,.3); }
+  .btn-outline:hover{ background:rgba(255,255,255,.08); }
+  .btn-sm{ padding:6px 12px; font-size:12px; border-radius:8px; }
+  .btn-icon{ padding:9px 10px; }
+  .btn-danger-outline{ background:transparent; color:#FF9E8A; border-color:rgba(255,158,138,.4); }
+  .btn-danger-outline:hover{ background:rgba(255,158,138,.1); }
+
+  /* ================= Dashboard (survey list) ================= */
+  .dash-hero{
+    padding:34px 0 18px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;
+  }
+  .dash-hero h1{ margin:0 0 6px; font-size:26px; font-weight:800; color:var(--navy); }
+  .dash-hero p{ margin:0; color:var(--muted); font-size:14.5px; max-width:640px; line-height:1.6; }
+
+  .dash-toolbar{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+
+  .survey-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(270px,1fr)); gap:16px; }
+  .survey-card{
+    background:var(--card); border:1px solid var(--border-soft); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:18px; cursor:pointer; position:relative;
+    transition:transform .15s ease, box-shadow .15s ease;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .survey-card:hover{ transform:translateY(-3px); box-shadow:0 16px 34px -14px rgba(23,31,62,.25); }
+  .survey-card .top-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .survey-card .s-name{ font-weight:800; font-size:15px; color:var(--navy); line-height:1.35; }
+  .survey-card .s-meta{ font-size:11.5px; color:var(--muted); }
+  .survey-card .s-bar-track{ height:6px; border-radius:99px; background:var(--border-soft); overflow:hidden; }
+  .survey-card .s-bar-fill{ height:100%; background:linear-gradient(90deg,var(--green-deep),var(--green)); border-radius:99px; }
+  .survey-card .s-pct{ font-size:11px; font-weight:800; color:var(--green-deep); }
+  .survey-card .s-actions{ display:flex; gap:6px; margin-top:4px; }
+  .survey-card .s-actions button{ flex:1; }
+
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--muted);
+    background:var(--card); border:1.5px dashed var(--border); border-radius:var(--radius);
+  }
+  .empty-state svg{ width:52px; height:52px; opacity:.35; margin-bottom:12px; }
+  .empty-state h3{ margin:0 0 6px; color:var(--navy); font-size:16px; }
+  .empty-state p{ margin:0 0 18px; font-size:13px; }
+
+  /* ================= Detail view header ================= */
+  .detail-hero{
+    padding:26px 0 18px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;
+  }
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12.5px;
+    font-weight:700; cursor:pointer; margin-bottom:10px; background:none; border:none; padding:0;
+  }
+  .back-link:hover{ color:var(--navy); }
+  .detail-hero h1{ margin:0 0 6px; font-size:22px; font-weight:800; color:var(--navy); }
+  .hero-meta{ display:flex; gap:10px; flex-wrap:wrap; }
+  .pill{
+    background:#fff; border:1px solid var(--border); border-radius:999px;
+    padding:7px 14px; font-size:12.5px; font-weight:700; color:var(--navy);
+    display:flex; align-items:center; gap:6px; box-shadow:var(--shadow);
+  }
+  .pill .dot{ width:7px; height:7px; border-radius:50%; background:var(--green); }
+
+  .work-area{ display:grid; grid-template-columns:10px 1fr; gap:22px; align-items:stretch; }
+  .rail-track{ position:relative; background:#E4E8EE; border-radius:8px; overflow:hidden; min-height:100%; }
+  .rail-fill{
+    position:absolute; bottom:0; left:0; right:0; width:100%;
+    background:linear-gradient(180deg, var(--green) 0%, var(--green-deep) 100%);
+    height:0%; transition:height .5s cubic-bezier(.22,.9,.3,1); border-radius:8px 8px 0 0;
+  }
+  .rail-fill::after{ content:""; position:absolute; top:0; left:0; right:0; height:6px; background:rgba(255,255,255,.35); filter:blur(1px); }
+
+  main.sections{ display:flex; flex-direction:column; gap:22px; padding-top:4px; }
+
+  .section-card{
+    background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+    border:1px solid var(--border-soft); overflow:hidden;
+    opacity:0; transform:translateY(14px); animation:rise .55s ease forwards;
+  }
+  @keyframes rise{ to{ opacity:1; transform:translateY(0); } }
+
+  .section-head{
+    background:var(--navy); color:#fff; padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    cursor:pointer; user-select:none; border-bottom:3px solid var(--green);
+  }
+  .section-head h2{ margin:0; font-size:16px; font-weight:800; }
+  .section-head .chev{ transition:transform .25s ease; opacity:.85; flex-shrink:0; }
+  .section-card.collapsed .chev{ transform:rotate(-90deg); }
+  html[dir="rtl"] .section-card.collapsed .chev{ transform:rotate(90deg); }
+
+  .section-count{
+    font-size:11.5px; font-weight:700; background:rgba(255,255,255,.14);
+    padding:3px 10px; border-radius:999px; color:#E9EDFB; flex-shrink:0;
+  }
+
+  .section-body{ padding:20px; display:grid; gap:14px; }
+  .section-card.collapsed .section-body{ display:none; }
+
+  .subgroup-label{
+    font-size:12.5px; font-weight:800; color:#fff;
+    padding:7px 14px; border-radius:8px; margin:4px 0 -2px;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .subgroup-solar{ background:var(--green-deep); }
+  .subgroup-diesel{ background:var(--gold); }
+  .subgroup-grid{ background:var(--blue); }
+
+  .field-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; }
+  .field-grid.cols-3{ grid-template-columns:repeat(3, 1fr); }
+  .field-grid.cols-1{ grid-template-columns:1fr; }
+  @media (max-width:760px){ .field-grid, .field-grid.cols-3{ grid-template-columns:1fr; } }
+
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field.field-map{ grid-column:1 / -1; }
+  .field label{ font-size:13px; font-weight:700; color:var(--navy); line-height:1.35; }
+  .field .hint{ font-size:11.5px; color:var(--muted); font-weight:500; margin-top:-4px; }
+  .field input[type="text"], .field input[type="date"], .field input[type="tel"],
+  .field select, .field textarea{
+    font-family:inherit; font-size:14px; color:var(--ink);
+    background:#FBFCFD; border:1.5px solid var(--border); border-radius:9px;
+    padding:10px 12px; width:100%; transition:border-color .15s ease, background .15s ease;
+  }
+  .field textarea{ min-height:96px; resize:vertical; line-height:1.6; }
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:none; border-color:var(--green-deep); background:#fff;
+    box-shadow:0 0 0 3px rgba(111,190,68,.15);
+  }
+  .field input:not(:placeholder-shown), .field textarea:not(:placeholder-shown){ background:#fff; }
+
+  .gps-row{ display:flex; gap:8px; }
+  .gps-row input{ flex:1; }
+  .gps-map-btn{
+    flex-shrink:0; background:var(--navy); color:#fff; border:none; border-radius:9px;
+    padding:0 14px; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700;
+  }
+  .gps-map-btn:hover{ background:var(--navy-ink); }
+  .gps-preview{
+    margin-top:8px; border-radius:10px; overflow:hidden; border:1.5px solid var(--border);
+    height:150px; display:none;
+  }
+  .gps-preview.show{ display:block; }
+
+  /* ================= Photo section ================= */
+  .photo-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; margin-top:8px; }
+  .photo-thumb{
+    position:relative; border-radius:10px; overflow:hidden; border:1.5px solid var(--border);
+    aspect-ratio:1; background:var(--bg);
+  }
+  .photo-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-thumb .rm{
+    position:absolute; top:4px; left:4px; width:22px; height:22px; border-radius:50%;
+    background:rgba(20,20,30,.65); color:#fff; border:none; cursor:pointer; font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .photo-add{
+    border:1.6px dashed var(--border); border-radius:10px; aspect-ratio:1;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    color:var(--muted); font-size:11px; font-weight:700; cursor:pointer; background:var(--bg);
+  }
+  .photo-add:hover{ border-color:var(--green-deep); color:var(--green-deep); }
+
+  .notes-box{ background:var(--bg); border:1.5px dashed var(--border); border-radius:10px; padding:14px; font-size:12.5px; color:var(--muted); line-height:1.7; }
+
+  footer{ text-align:center; padding:34px 20px 10px; color:var(--muted); font-size:12px; }
+  footer .logo-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px; opacity:.8;}
+  footer .logo-row svg{ width:20px; height:19px; }
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--navy-ink); color:#fff; padding:11px 22px; border-radius:999px;
+    font-size:13.5px; font-weight:700; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+    z-index:200; display:flex; align-items:center; gap:8px;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast .dot2{ width:7px; height:7px; border-radius:50%; background:var(--green); }
+
+  /* ================= Modal (map) ================= */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,20,45,.55); z-index:300;
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  .modal-box{
+    background:#fff; border-radius:16px; width:100%; max-width:560px; overflow:hidden;
+    box-shadow:var(--shadow-lg); display:flex; flex-direction:column; max-height:90vh;
+  }
+  .modal-head{
+    background:var(--navy); color:#fff; padding:14px 18px; display:flex; align-items:center;
+    justify-content:space-between; border-bottom:3px solid var(--green);
+  }
+  .modal-head h3{ margin:0; font-size:15px; font-weight:800; }
+  .modal-close{ background:rgba(255,255,255,.12); border:none; color:#fff; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:15px; }
+  #mapContainer{ width:100%; height:340px; }
+  .modal-body{ padding:14px 18px; }
+  .modal-foot{ padding:12px 18px; display:flex; gap:10px; justify-content:space-between; align-items:center; border-top:1px solid var(--border-soft); flex-wrap:wrap; }
+  .coord-readout{ font-size:12.5px; color:var(--navy); font-weight:700; }
+  .modal-actions{ display:flex; gap:8px; }
+  .btn-navy{ background:var(--navy); color:#fff; }
+  .btn-navy:hover{ background:var(--navy-ink); }
+
+  /* ================= Print ================= */
+  @media print{
+    .lock-screen, header.topbar, .hero-meta, .btn, .rail-track, footer .btn, .dash-toolbar, .gps-map-btn { display:none !important; }
+    body{ background:#fff; }
+    .section-card{ box-shadow:none; border:1px solid #ccc; break-inside:avoid; margin-bottom:10px; opacity:1 !important; transform:none !important; }
+    .work-area{ grid-template-columns:1fr; }
+    .rail-track{ display:none; }
+    .section-card.collapsed .section-body{ display:grid !important; }
+    .section-card.collapsed .chev{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= LOCK SCREEN ================= -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-card" id="lockCard">
+    <svg class="mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <polygon points="18,15 60,50 18,85" fill="#ffffff"/>
+      <polygon points="18,38 72,62 72,45 18,20" fill="#6FBE44"/>
+      <rect x="18" y="70" width="9" height="18" fill="#ffffff"/>
+      <rect x="31" y="62" width="9" height="26" fill="#ffffff"/>
+      <rect x="44" y="70" width="9" height="18" fill="#ffffff"/>
+    </svg>
+    <h2 id="lockTitle">PM TECH Water Solutions</h2>
+    <p id="lockDesc">هذا المحتوى خاص بفريق العمل. من فضلك أدخل كلمة المرور للمتابعة.</p>
+    <form id="lockForm">
+      <div class="lock-input-row">
+        <input type="password" id="lockInput" placeholder="••••••••" autocomplete="off" inputmode="text">
+      </div>
+      <div class="lock-error" id="lockError"></div>
+      <button class="lock-btn" type="submit" id="lockBtnText">دخول</button>
+    </form>
+    <div class="lock-hint" id="lockHint">محمي بكلمة مرور محلية لهذا المتصفح</div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" id="brandHome">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <polygon points="18,15 60,50 18,85" fill="#1F2C5C"/>
+          <polygon points="18,38 72,62 72,45 18,20" fill="#6FBE44"/>
+          <rect x="18" y="70" width="9" height="18" fill="#1F2C5C"/>
+          <rect x="31" y="62" width="9" height="26" fill="#1F2C5C"/>
+          <rect x="44" y="70" width="9" height="18" fill="#1F2C5C"/>
+        </svg>
+        <div class="brand-text">
+          <div class="name">PM TECH</div>
+          <div class="sub">Water Solutions</div>
+        </div>
+      </div>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- ===== Dashboard view ===== -->
+    <div id="dashboardView">
+      <section class="dash-hero">
+        <div>
+          <h1 data-t="dash_title"></h1>
+          <p data-t="dash_desc"></p>
+        </div>
+      </section>
+      <div class="dash-toolbar">
+        <button class="btn btn-solid" id="newSurveyBtn"></button>
+        <button class="btn btn-outline btn-navylike" id="importBtn" style="background:#fff;color:var(--navy);border-color:var(--border);"></button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+      <div id="surveyListWrap"></div>
+    </div>
+
+    <!-- ===== Detail (form) view ===== -->
+    <div id="detailView" hidden>
+      <section class="detail-hero">
+        <div>
+          <button class="back-link" id="backBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <span data-t="back_to_list"></span>
+          </button>
+          <h1 id="detailTitle"></h1>
+        </div>
+        <div class="hero-meta">
+          <span class="pill"><span class="dot"></span><span data-t="pill_autosave"></span></span>
+          <span class="pill" id="progressPill">0%</span>
+        </div>
+      </section>
+
+      <div class="work-area">
+        <div class="rail-track"><div class="rail-fill" id="railFill"></div></div>
+        <main class="sections" id="sections"></main>
+      </div>
+    </div>
+
+    <footer>
+      <div class="logo-row">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <polygon points="18,15 60,50 18,85" fill="#1F2C5C"/>
+          <polygon points="18,38 72,62 72,45 18,20" fill="#6FBE44"/>
+        </svg>
+        <span data-t="footer_brand"></span>
+      </div>
+      <div data-t="footer_note"></div>
+    </footer>
+  </div>
+</div>
+
+<!-- ================= GPS Map Modal ================= -->
+<div class="modal-overlay" id="mapModal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 data-t="map_title"></h3>
+      <button class="modal-close" id="mapCloseBtn">✕</button>
+    </div>
+    <div id="mapContainer"></div>
+    <div class="modal-body">
+      <button class="btn btn-sm" id="useMyLocationBtn" style="background:var(--bg); color:var(--navy); border:1px solid var(--border); width:100%; justify-content:center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>
+        <span data-t="use_my_location"></span>
+      </button>
+    </div>
+    <div class="modal-foot">
+      <span class="coord-readout" id="coordReadout">—</span>
+      <div class="modal-actions">
+        <button class="btn btn-sm" id="mapCancelBtn" style="background:var(--bg);color:var(--ink);"></button>
+        <button class="btn btn-sm btn-navy" id="mapConfirmBtn"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="dot2"></span><span id="toastText"></span></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
