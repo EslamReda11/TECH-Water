@@ -220,7 +220,7 @@
   function surveyCompletion(data) {
     let total = 0, filled = 0;
     SECTIONS.forEach(sec => sec.groups.forEach(g => g.fields.forEach(f => {
-      if (f.type === "photos" || f.type === "video") return;
+      if (f.type === "photos" || f.type === "video" || f.type === "stamp") return;
       total++;
       const v = data[f.id];
       if (v && String(v).trim().length > 0) filled++;
@@ -385,48 +385,66 @@
     showDashboard();
   });
 
+  function countableField(f) {
+    return f.type !== "photos" && f.type !== "video" && f.type !== "stamp";
+  }
+
   function countTotalFields() {
     let total = 0;
-    SECTIONS.forEach(sec => sec.groups.forEach(g => g.fields.forEach(f => { if (f.type !== "photos" && f.type !== "video") total++; })));
+    SECTIONS.forEach(sec => sec.groups.forEach(g => {
+      if (!groupVisible(g)) return;
+      g.fields.forEach(f => { if (countableField(f)) total++; });
+    }));
     return total;
   }
-  const TOTAL_FIELDS = countTotalFields();
 
   function countFilled() {
     let filled = 0;
-    SECTIONS.forEach(sec => sec.groups.forEach(g => g.fields.forEach(f => {
-      if (f.type === "photos" || f.type === "video") return;
-      const v = formData[f.id];
-      if (v && String(v).trim().length > 0) filled++;
-    })));
+    SECTIONS.forEach(sec => sec.groups.forEach(g => {
+      if (!groupVisible(g)) return;
+      g.fields.forEach(f => {
+        if (!countableField(f)) return;
+        const v = formData[f.id];
+        if (v && String(v).trim().length > 0) filled++;
+      });
+    }));
     return filled;
   }
 
   function updateProgress() {
+    const total = countTotalFields();
     const filled = countFilled();
-    const pct = TOTAL_FIELDS ? Math.round((filled / TOTAL_FIELDS) * 100) : 0;
+    const pct = total ? Math.round((filled / total) * 100) : 0;
     document.getElementById("railFill").style.height = pct + "%";
     document.getElementById("progressPill").textContent = pct + "%";
   }
 
   function updateSectionCounts() {
     SECTIONS.forEach(sec => {
-      const total = sec.groups.reduce((a, g) => a + g.fields.filter(f => f.type !== "photos" && f.type !== "video").length, 0);
-      let filled = 0;
-      sec.groups.forEach(g => g.fields.forEach(f => {
-        if (f.type === "photos" || f.type === "video") return;
-        const v = formData[f.id];
-        if (v && String(v).trim().length > 0) filled++;
-      }));
+      let total = 0, filled = 0;
+      sec.groups.forEach(g => {
+        if (!groupVisible(g)) return;
+        g.fields.forEach(f => {
+          if (!countableField(f)) return;
+          total++;
+          const v = formData[f.id];
+          if (v && String(v).trim().length > 0) filled++;
+        });
+      });
       const badge = document.getElementById("count_" + sec.id);
       if (badge) badge.textContent = filled + "/" + total;
     });
   }
 
+
   function persistCurrent() {
     if (!currentSurveyId) return;
-    writeSurvey(currentSurveyId, formData);
-    touchIndex(currentSurveyId);
+    try {
+      writeSurvey(currentSurveyId, formData);
+      touchIndex(currentSurveyId);
+    } catch (err) {
+      alert(t("storage_full"));
+    }
   }
 
   function renderGpsField(field) {
@@ -468,6 +486,14 @@
     mapBtn.addEventListener("click", () => openMapModal(field.id, input.value));
     row.appendChild(mapBtn);
 
+    const shareBtn = document.createElement("button");
+    shareBtn.type = "button";
+    shareBtn.className = "gps-map-btn";
+    shareBtn.style.background = "var(--green-deep)";
+    shareBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg><span>${t("share_location")}</span>`;
+    shareBtn.addEventListener("click", () => shareGpsLocation(input.value));
+    row.appendChild(shareBtn);
+
     wrap.appendChild(row);
 
     const preview = document.createElement("div");
@@ -487,6 +513,25 @@
     const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
     if (isNaN(lat) || isNaN(lng)) return null;
     return { lat, lng };
+  }
+
+  async function shareGpsLocation(value) {
+    const coords = parseLatLng(value);
+    if (!coords) { alert(t("share_no_location")); return; }
+    const mapsUrl = `https://www.google.com/maps?q=${coords.lat},${coords.lng}`;
+    const label = surveyLabel(formData) || t("untitled_survey");
+    const text = (currentLang === "ar" ? "موقع معاينة PM TECH" : "PM TECH survey location") + ` — ${label}\n${mapsUrl}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "PM TECH", text, url: mapsUrl });
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return; // user cancelled, no fallback needed
+      }
+    }
+    // Fallback: open WhatsApp Web/App share link
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
   }
 
   const previewMaps = {};
@@ -511,6 +556,35 @@
     previewMaps[fieldId].setView([coords.lat, coords.lng], 15);
     previewMaps[fieldId]._marker.setLatLng([coords.lat, coords.lng]);
     setTimeout(() => previewMaps[fieldId].invalidateSize(), 60);
+  }
+
+  /* Compress an image file client-side (resize + re-encode as JPEG) before
+     storing as base64. Real phone camera photos can be 3-8MB uncompressed,
+     which quickly exceeds the browser's localStorage quota (~5-10MB total)
+     after just 1-2 photos — this is why "the second photo doesn't save".
+     Resizing to a reasonable max dimension fixes that reliably. */
+  function compressImage(file, maxDim = 1600, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = () => { img.src = reader.result; };
+      reader.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   function renderPhotosField(field) {
@@ -554,18 +628,23 @@
       fileInput.accept = "image/*";
       fileInput.capture = "environment";
       fileInput.hidden = true;
-      fileInput.addEventListener("change", () => {
+      fileInput.addEventListener("change", async () => {
         const file = fileInput.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
+        const span = addBtn.querySelector("span");
+        const origText = span.textContent;
+        span.textContent = t("uploading");
+        try {
+          const compressed = await compressImage(file);
           const list = formData[field.id] || [];
-          list.push(reader.result);
+          list.push(compressed);
           formData[field.id] = list;
           persistCurrent();
           renderThumbs();
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+          span.textContent = origText;
+          alert(t("upload_error"));
+        }
         fileInput.value = "";
       });
       addBtn.appendChild(fileInput);
@@ -651,14 +730,214 @@
     return wrap;
   }
 
+  function findSectionIdForField(fieldId) {
+    for (const sec of SECTIONS) {
+      for (const group of sec.groups) {
+        if (group.fields.some(f => f.id === fieldId)) return sec.id;
+      }
+    }
+    return null;
+  }
+
+  function autoGrow(el) {
+    el.style.height = "auto";
+    el.style.height = (el.scrollHeight + 2) + "px";
+  }
+
+  function renderSignatureField(field) {
+    const wrap = document.createElement("div");
+    wrap.className = "field field-map";
+
+    const label = document.createElement("label");
+    label.textContent = field.label[currentLang];
+    wrap.appendChild(label);
+
+    if (field.hint) {
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.textContent = field.hint[currentLang];
+      wrap.appendChild(hint);
+    }
+
+    const box = document.createElement("div");
+    box.style.border = "1.5px dashed var(--border)";
+    box.style.borderRadius = "10px";
+    box.style.background = "#fff";
+    box.style.touchAction = "none";
+    box.style.position = "relative";
+    box.style.overflow = "hidden";
+
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "100%";
+    canvas.style.height = "160px";
+    canvas.style.display = "block";
+    canvas.style.cursor = "crosshair";
+    box.appendChild(canvas);
+
+    const placeholder = document.createElement("div");
+    placeholder.textContent = t("signature_hint");
+    placeholder.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none;";
+    box.appendChild(placeholder);
+
+    wrap.appendChild(box);
+
+    const actionsRow = document.createElement("div");
+    actionsRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:8px;";
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.textContent = t("signature_clear");
+    clearBtn.style.cssText = "background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;";
+    actionsRow.appendChild(clearBtn);
+    wrap.appendChild(actionsRow);
+
+    function setupCanvas() {
+      const ratio = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * ratio;
+      canvas.height = 160 * ratio;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#1B2333";
+      return ctx;
+    }
+
+    let ctx = null;
+    let drawing = false;
+    let hasInk = !!formData[field.id];
+
+    function loadExistingInk() {
+      if (!hasInk || !ctx) return;
+      placeholder.style.display = "none";
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, 160);
+      img.src = formData[field.id];
+    }
+
+    // setupCanvas() reads getBoundingClientRect(), which only returns real
+    // dimensions once the element is actually attached and laid out in the
+    // live document. renderSignatureField() runs before the caller appends
+    // this node to the page, so we defer sizing to the next animation frame
+    // (by then the synchronous appendChild in the caller has already run).
+    requestAnimationFrame(() => {
+      ctx = setupCanvas();
+      loadExistingInk();
+    });
+
+    // Re-fit the canvas if the container is resized (e.g. orientation change)
+    // without losing anything already drawn.
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!wrap.isConnected) return;
+        const savedInk = hasInk ? canvas.toDataURL("image/png") : null;
+        ctx = setupCanvas();
+        if (savedInk) {
+          const img = new Image();
+          img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, 160);
+          img.src = savedInk;
+        }
+      }, 200);
+    });
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const point = e.touches ? e.touches[0] : e;
+      return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    }
+
+    function start(e) {
+      if (!ctx) return;
+      e.preventDefault();
+      drawing = true;
+      placeholder.style.display = "none";
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    }
+    function move(e) {
+      if (!drawing || !ctx) return;
+      e.preventDefault();
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+    function end() {
+      if (!drawing) return;
+      drawing = false;
+      hasInk = true;
+      formData[field.id] = canvas.toDataURL("image/png");
+      persistCurrent();
+      updateProgress();
+      updateSectionCounts();
+    }
+
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end);
+
+    clearBtn.addEventListener("click", () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      placeholder.style.display = "flex";
+      hasInk = false;
+      formData[field.id] = "";
+      persistCurrent();
+      updateProgress();
+      updateSectionCounts();
+    });
+
+    return wrap;
+  }
+
+  function renderStampField(field) {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    const label = document.createElement("label");
+    label.textContent = field.label[currentLang];
+    wrap.appendChild(label);
+
+    const stampWrap = document.createElement("div");
+    stampWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;";
+    stampWrap.innerHTML = `
+      <svg width="130" height="130" viewBox="0 0 200 200" style="opacity:.88;">
+        <defs>
+          <path id="stampCircleTop_${field.id}" d="M 30,100 A 70,70 0 0 1 170,100" fill="none"/>
+          <path id="stampCircleBottom_${field.id}" d="M 170,100 A 70,70 0 0 1 30,100" fill="none"/>
+        </defs>
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#1F2C5C" stroke-width="3"/>
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#1F2C5C" stroke-width="1.4"/>
+        <text font-size="12.5" font-weight="700" fill="#1F2C5C" letter-spacing="2">
+          <textPath href="#stampCircleTop_${field.id}" startOffset="50%" text-anchor="middle">PM TECH WATER SOLUTIONS</textPath>
+        </text>
+        <text font-size="10.5" font-weight="600" fill="#1F2C5C" letter-spacing="1.5">
+          <textPath href="#stampCircleBottom_${field.id}" startOffset="50%" text-anchor="middle">SITE SURVEY • CERTIFIED</textPath>
+        </text>
+        <g transform="translate(100,100)">
+          <polygon points="-24,-22 4,4 -24,30" fill="#1F2C5C" transform="translate(-6,-6) scale(0.9)"/>
+          <polygon points="-24,-6 22,14 22,-2 -24,-22" fill="#6FBE44" transform="translate(-6,-6) scale(0.9)"/>
+        </g>
+      </svg>
+      <div style="font-size:11px;color:var(--muted);text-align:center;max-width:200px;">${t("stamp_caption")}</div>
+    `;
+    wrap.appendChild(stampWrap);
+    return wrap;
+  }
+
   function renderField(field) {
     if (field.type === "gps") return renderGpsField(field);
     if (field.type === "photos") return renderPhotosField(field);
     if (field.type === "video") return renderVideoField(field);
+    if (field.type === "signature") return renderSignatureField(field);
+    if (field.type === "stamp") return renderStampField(field);
 
     const wrap = document.createElement("div");
     wrap.className = "field";
-    if (field.type === "textarea") wrap.style.gridColumn = "1 / -1";
+    if (field.type === "textarea" || field.cols === "full") wrap.style.gridColumn = "1 / -1";
 
     const label = document.createElement("label");
     label.setAttribute("for", "f_" + field.id);
@@ -686,15 +965,21 @@
         if (formData[field.id] === opt.id) o.selected = true;
         input.appendChild(o);
       });
-    } else if (field.type === "textarea") {
-      input = document.createElement("textarea");
+    } else if (field.type === "date" || field.type === "tel") {
+      input = document.createElement("input");
+      input.type = field.type;
       input.placeholder = " ";
       input.value = formData[field.id] || "";
     } else {
-      input = document.createElement("input");
-      input.type = field.type === "date" ? "date" : (field.type === "tel" ? "tel" : "text");
+      // Default: auto-growing multi-line textarea so long entries wrap onto
+      // new lines instead of scrolling horizontally in a single line.
+      input = document.createElement("textarea");
+      input.rows = 1;
       input.placeholder = " ";
       input.value = formData[field.id] || "";
+      if (field.type === "textarea") input.classList.add("notes-large");
+      requestAnimationFrame(() => autoGrow(input));
+      input.addEventListener("input", () => autoGrow(input));
     }
     input.id = "f_" + field.id;
     input.addEventListener("input", () => {
@@ -708,10 +993,49 @@
       persistCurrent();
       updateProgress();
       updateSectionCounts();
+      if (field.reRenderSection) {
+        const secId = findSectionIdForField(field.id);
+        if (secId) rerenderSectionBody(secId);
+      }
     });
 
     wrap.appendChild(input);
     return wrap;
+  }
+
+  const sectionCardById = {};
+
+  function groupVisible(group) {
+    if (!group.showIf) return true;
+    return formData[group.showIf.field] === group.showIf.value;
+  }
+
+  function buildSectionBody(sec) {
+    const body = document.createElement("div");
+    body.className = "section-body";
+    sec.groups.forEach(group => {
+      if (!groupVisible(group)) return;
+      if (group.label) {
+        const gl = document.createElement("div");
+        gl.className = "subgroup-label " + (group.accentClass || "");
+        gl.textContent = group.label[currentLang];
+        body.appendChild(gl);
+      }
+      const grid = document.createElement("div");
+      grid.className = "field-grid" + (group.cols3 ? " cols-3" : "") + (group.cols1 ? " cols-1" : "");
+      group.fields.forEach(f => grid.appendChild(renderField(f)));
+      body.appendChild(grid);
+    });
+    return body;
+  }
+
+  function rerenderSectionBody(secId) {
+    const sec = SECTIONS.find(s => s.id === secId);
+    const card = sectionCardById[secId];
+    if (!sec || !card) return;
+    const oldBody = card.querySelector(".section-body");
+    const newBody = buildSectionBody(sec);
+    card.replaceChild(newBody, oldBody);
   }
 
   function renderSection(sec, index) {
@@ -730,24 +1054,11 @@
     `;
     head.addEventListener("click", () => card.classList.toggle("collapsed"));
 
-    const body = document.createElement("div");
-    body.className = "section-body";
-
-    sec.groups.forEach(group => {
-      if (group.label) {
-        const gl = document.createElement("div");
-        gl.className = "subgroup-label " + (group.accentClass || "");
-        gl.textContent = group.label[currentLang];
-        body.appendChild(gl);
-      }
-      const grid = document.createElement("div");
-      grid.className = "field-grid" + (group.cols3 ? " cols-3" : "") + (group.cols1 ? " cols-1" : "");
-      group.fields.forEach(f => grid.appendChild(renderField(f)));
-      body.appendChild(grid);
-    });
+    const body = buildSectionBody(sec);
 
     card.appendChild(head);
     card.appendChild(body);
+    sectionCardById[sec.id] = card;
     return card;
   }
 
@@ -760,6 +1071,7 @@
     const sectionsEl = document.getElementById("sections");
     sectionsEl.innerHTML = "";
     Object.keys(previewMaps).forEach(k => delete previewMaps[k]);
+    Object.keys(sectionCardById).forEach(k => delete sectionCardById[k]);
     SECTIONS.forEach((sec, i) => sectionsEl.appendChild(renderSection(sec, i)));
     updateProgress();
     updateSectionCounts();
