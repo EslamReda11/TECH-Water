@@ -245,7 +245,8 @@
     background:#FBFCFD; border:1.5px solid var(--border); border-radius:9px;
     padding:10px 12px; width:100%; transition:border-color .15s ease, background .15s ease;
   }
-  .field textarea{ min-height:96px; resize:vertical; line-height:1.6; }
+  .field textarea{ resize:none; line-height:1.5; min-height:42px; overflow:hidden; }
+  .field textarea.notes-large{ min-height:96px; }
   .field input:focus, .field select:focus, .field textarea:focus{
     outline:none; border-color:var(--green-deep); background:#fff;
     box-shadow:0 0 0 3px rgba(111,190,68,.15);
