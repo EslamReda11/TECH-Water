@@ -1,8 +1,9 @@
 /* PM TECH Water Solutions — Site Survey Data Model
    Each section has: id, title{ar,en}, groups[]
-   Each group (optional subgroup) has: label{ar,en}, accentClass, fields[]
-   Each field has: id, label{ar,en}, hint{ar,en}, type ('text'|'select'|'textarea'|'date'|'gps'|'photos'|'video'),
-                   cols (grid width hint), options (for select) [{ar,en}]
+   Each group (optional subgroup) has: label{ar,en}, accentClass, fields[], showIf{field,value}
+   Each field has: id, label{ar,en}, hint{ar,en},
+     type: 'text' | 'select' | 'textarea' | 'date' | 'tel' | 'gps' | 'photos' | 'video' | 'signature' | 'stamp',
+     cols, options (for select) [{id,ar,en}], reRenderSection (bool, triggers section re-render on change)
 */
 const UI_TEXT = {
   hero_title: { ar: "استمارة المعاينة الفنية وجمع البيانات", en: "Site Survey & Technical Data Sheet" },
@@ -55,37 +56,46 @@ const UI_TEXT = {
   use_my_location: { ar: "استخدام موقعي الحالي", en: "Use My Current Location" },
   map_cancel: { ar: "إلغاء", en: "Cancel" },
   map_confirm: { ar: "تأكيد الموقع", en: "Confirm Location" },
-  pick_on_map: { ar: "تحديد على الخريطة", en: "Pick on Map" },
+  pick_on_map: { ar: "الخريطة", en: "Map" },
+  share_location: { ar: "مشاركة", en: "Share" },
   locating: { ar: "جاري تحديد موقعك...", en: "Locating you..." },
   location_error: { ar: "تعذر الوصول للموقع. تأكد من تفعيل صلاحية الموقع.", en: "Couldn't access location. Please allow location permission." },
+  share_no_location: { ar: "من فضلك حدد الموقع الأول قبل المشاركة", en: "Please set a location first before sharing" },
 
   /* Photos & video */
   photos_label: { ar: "صور الموقع", en: "Site Photos" },
-  photos_hint: { ar: "أضف صور للبئر، اللوحة، أو أي عنصر يفيد التوثيق", en: "Add photos of the well, panel, or anything useful for documentation" },
+  photos_hint: { ar: "أضف صور للبئر، اللوحة، أو أي عنصر يفيد التوثيق (بيتم ضغطها تلقائيًا)", en: "Add photos of the well, panel, or anything useful for documentation (auto-compressed)" },
   add_photo: { ar: "إضافة صورة", en: "Add Photo" },
   video_label: { ar: "فيديو الموقع", en: "Site Video" },
   video_hint: { ar: "أضف فيديو قصير للموقع أو البئر أو اللوحة (اختياري)", en: "Add a short video of the site, well, or panel (optional)" },
   add_video: { ar: "إضافة فيديو", en: "Add Video" },
-  uploading: { ar: "جاري الرفع...", en: "Uploading..." },
-  upload_error: { ar: "فشل الرفع، حاول مرة أخرى", en: "Upload failed, please try again" },
+  uploading: { ar: "جاري المعالجة...", en: "Processing..." },
+  upload_error: { ar: "فشلت العملية، حاول مرة أخرى", en: "Operation failed, please try again" },
+  storage_full: { ar: "مساحة التخزين المحلي في المتصفح امتلأت. احذف بعض الصور/الفيديوهات القديمة أو صدّر المعاينة كنسخة احتياطية.", en: "Local browser storage is full. Delete some old photos/videos or export this survey as a backup." },
 
   /* Login screen */
   lock_title: { ar: "PM TECH Water Solutions", en: "PM TECH Water Solutions" },
-  lock_desc: { ar: "هذا المحتوى خاص بفريق العمل. سجّل الدخول بالبريد وكلمة المرور اللي أنشأها لك المدير.", en: "This content is for team use only. Sign in with the email and password your admin created for you." },
-  lock_btn: { ar: "دخول", en: "Sign In" },
-  lock_hint: { ar: "للحصول على حساب، تواصل مع مدير النظام في الشركة", en: "To get an account, contact your system admin" },
-  lock_wrong: { ar: "البريد أو كلمة المرور غير صحيحة", en: "Incorrect email or password" },
-  sign_out: { ar: "تسجيل الخروج", en: "Sign Out" },
-  config_missing: { ar: "لم يتم ربط الموقع بالسيرفر بعد — راجع ملف config.js", en: "Site is not connected to a server yet — check config.js" },
+  lock_desc: { ar: "هذا المحتوى خاص بفريق العمل. من فضلك أدخل كلمة المرور للمتابعة.", en: "This content is for team use only. Please enter the password to continue." },
+  lock_btn: { ar: "دخول", en: "Unlock" },
+  lock_hint: { ar: "محمي بكلمة مرور محلية لهذا المتصفح", en: "Protected by a local browser password" },
+  lock_wrong: { ar: "كلمة المرور غير صحيحة، حاول مرة أخرى", en: "Incorrect password, please try again" },
 
   /* Panel components checklist */
-  panel_components_label: { ar: "٦.١  مكونات لوحة الكهرباء", en: "6.1  Electrical Panel Components" },
   present_opt: { ar: "موجود", en: "Present" },
   absent_opt: { ar: "غير موجود", en: "Not Present" },
 
   /* Recommendations */
   recommendations_label: { ar: "التوصيات", en: "Recommendations" },
   recommendations_hint: { ar: "اكتب توصياتك للعميل بناءً على المعاينة", en: "Write your recommendations for the client based on the survey" },
+
+  /* Signature & stamp */
+  signature_clear: { ar: "مسح التوقيع", en: "Clear Signature" },
+  signature_hint: { ar: "وقّع هنا بإصبعك أو الماوس", en: "Sign here with your finger or mouse" },
+  signature_saved: { ar: "تم حفظ التوقيع ✓", en: "Signature saved ✓" },
+  stamp_caption: { ar: "معتمد رسميًا من PM TECH Water Solutions", en: "Officially certified by PM TECH Water Solutions" },
+
+  /* Power source selector */
+  choose_power_source: { ar: "اختر مصدر الكهرباء المستخدم في هذا الموقع", en: "Choose the power source used at this site" },
 };
 
 const YN_OPTIONS = [
@@ -97,6 +107,28 @@ const PRESENT_OPTIONS = [
   { id: "present", ar: "موجود", en: "Present" },
   { id: "absent", ar: "غير موجود", en: "Not Present" },
 ];
+
+const DRILLING_OPTIONS = [
+  { id: "percussion", ar: "بوركيشن", en: "Percussion" },
+  { id: "eason", ar: "إيسون", en: "Eason" },
+  { id: "auger", ar: "بريمة", en: "Auger" },
+];
+
+const WELL_STATUS_OPTIONS = [
+  { id: "new_developed", ar: "بئر حديث (تمت عملية التنمية والتطهير)", en: "New well (development & disinfection completed)" },
+  { id: "new_undeveloped", ar: "بئر حديث (لم تتم عملية التنمية بعد)", en: "New well (development not performed yet)" },
+  { id: "old_sustained", ar: "بئر قديم (مستدام وعامل)", en: "Old well (sustained and operating)" },
+];
+
+const POWER_SOURCE_OPTIONS = [
+  { id: "solar", ar: "الطاقة الشمسية (Solar PV)", en: "Solar PV" },
+  { id: "diesel", ar: "المولد (الديزل)", en: "Diesel Generator" },
+  { id: "grid", ar: "محول الشبكة الكهربائية", en: "Grid Transformer" },
+];
+
+function sectionNotesField(id, labelAr, labelEn) {
+  return { id, label: { ar: labelAr, en: labelEn }, type: "textarea" };
+}
 
 const SECTIONS = [
   /* =========================================================
@@ -116,9 +148,10 @@ const SECTIONS = [
         { id: "address", label: { ar: "العنوان التفصيلي", en: "Detailed Address" },
           hint: { ar: "علامات مميزة، طريق الوصول", en: "Landmarks, road access" }, type: "text", cols: "full" },
         { id: "gps", label: { ar: "إحداثيات GPS", en: "GPS Coordinates" },
-          hint: { ar: "خط العرض، خط الطول (مثال: 30.1234, 31.5678)", en: "Latitude, Longitude (e.g. 30.1234, 31.5678)" }, type: "gps" },
+          hint: { ar: "خط العرض، خط الطول — يمكنك مشاركتها لاحقًا على واتساب أو أي منصة", en: "Latitude, Longitude — you can share this later via WhatsApp or any app" }, type: "gps" },
         { id: "phone", label: { ar: "رقم هاتف التواصل (العميل / الموقع)", en: "Contact Phone (Client/Site)" }, type: "tel" },
         { id: "projectRef", label: { ar: "الرقم المرجعي للمشروع", en: "Project Reference No." }, type: "text" },
+        sectionNotesField("generalNotes", "ملاحظات خاصة بالبيانات العامة", "General Information Notes"),
       ]
     }]
   },
@@ -134,25 +167,25 @@ const SECTIONS = [
         cols3: true,
         fields: [
           { id: "wellDiameter", label: { ar: "قطر البئر", en: "Well Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
+          { id: "casingPipeDiameter", label: { ar: "قطر ماسورة غلاف البئر (Casing)", en: "Casing Pipe Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
           { id: "risingMainDiameter", label: { ar: "قطر ماسورة الرفع", en: "Rising Main (Column Pipe) Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
           { id: "casingMaterial", label: { ar: "مادة الغلاف", en: "Casing Material" }, hint: { ar: "صلب / PVC", en: "steel / PVC" }, type: "text" },
           { id: "totalDepth", label: { ar: "العمق الإجمالي للبئر", en: "Total Well Depth" }, hint: { ar: "متر", en: "meters" }, type: "text" },
           { id: "staticLevel", label: { ar: "منسوب المياه الساكن", en: "Static Water Level" }, hint: { ar: "متر من سطح الأرض", en: "meters, from ground" }, type: "text" },
           { id: "dynamicLevel", label: { ar: "منسوب المياه المتحرك المتوقع", en: "Expected Dynamic Water Level" }, hint: { ar: "متر من سطح الأرض", en: "meters, from ground" }, type: "text" },
-          { id: "drillingMethod", label: { ar: "طريقة الحفر", en: "Drilling Method" }, hint: { ar: "ارتوازي / محفور / مثقوب", en: "artesian / drilled / bored" }, type: "text" },
-          { id: "filter", label: { ar: "الفلتر", en: "Filter" }, hint: { ar: "متر", en: "meters" }, type: "text" },
+          { id: "drillingMethod", label: { ar: "طريقة الحفر", en: "Drilling Method" }, type: "select", options: DRILLING_OPTIONS },
+          { id: "filterDepth", label: { ar: "عمق الفلتر", en: "Filter Depth" }, hint: { ar: "متر", en: "meters" }, type: "text" },
           { id: "pumpTestReport", label: { ar: "هل يوجد تقرير اختبار ضخ؟", en: "Test Pumping Report Available?" }, type: "select", options: YN_OPTIONS },
           { id: "safeYield", label: { ar: "معدل التصرف الأمن", en: "Safe Yield Rate" }, hint: { ar: "م3/ساعة", en: "m3/hr" }, type: "text" },
           { id: "wellYield", label: { ar: "إنتاجية البئر (من اختبار الضخ)", en: "Well Yield (from test pumping)" }, hint: { ar: "م3/ساعة", en: "m3/hr" }, type: "text" },
           { id: "waterQuality", label: { ar: "جودة المياه", en: "Water Quality" }, hint: { ar: "مشاهدة بصرية / TDS إن وجد", en: "visual/TDS if known" }, type: "text" },
-          { id: "wellOperatedBefore", label: { ar: "هل البئر اشتغل قبل كده؟", en: "Has the well been operated before?" }, type: "select", options: YN_OPTIONS },
-          { id: "wellDeveloped", label: { ar: "هل تم عمل تنمية للبئر؟", en: "Has well development been performed?" }, type: "select", options: YN_OPTIONS },
+          { id: "wellStatus", label: { ar: "ما هي الحالة التشغيلية الحالية للبئر؟", en: "What is the well's current operational status?" }, type: "select", options: WELL_STATUS_OPTIONS, cols: "full" },
         ]
       },
       {
         cols1: true,
         fields: [
-          { id: "wellNotes", label: { ar: "ملاحظات خاصة بالبئر", en: "Well-specific Notes" }, type: "textarea" },
+          sectionNotesField("wellNotes", "ملاحظات خاصة بالبئر", "Well-specific Notes"),
         ]
       }
     ]
@@ -164,21 +197,27 @@ const SECTIONS = [
   {
     id: "s3",
     title: { ar: "بيانات الطلمبة", en: "Pump Data" },
-    groups: [{
-      cols3: true,
-      fields: [
-        { id: "pumpBrand", label: { ar: "ماركة الطلمبة", en: "Pump Brand" }, type: "text" },
-        { id: "pumpModel", label: { ar: "الموديل", en: "Model" }, type: "text" },
-        { id: "pumpSerial", label: { ar: "السيريال نمبر", en: "Serial Number" }, type: "text" },
-        { id: "pumpPower", label: { ar: "القدرة", en: "Power" }, hint: { ar: "حصان / كيلوواط", en: "HP / kW" }, type: "text" },
-        { id: "pumpStages", label: { ar: "عدد المراحل", en: "Number of Stages" }, type: "text" },
-        { id: "pumpOuterDiameter", label: { ar: "القطر الخارجي", en: "Outer Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
-        { id: "pumpDischargeDiameter", label: { ar: "قطر الطرد", en: "Discharge Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
-        { id: "waterQuantity", label: { ar: "كمية المياه", en: "Water Quantity / Flow Rate" }, hint: { ar: "م3/ساعة", en: "m3/hr" }, type: "text" },
-        { id: "pumpInstallDate", label: { ar: "تاريخ التركيب", en: "Installation Date" }, type: "date" },
-        { id: "pumpOperatingHours", label: { ar: "وقت التشغيل", en: "Operating Hours" }, hint: { ar: "ساعة", en: "hours" }, type: "text" },
-      ]
-    }]
+    groups: [
+      {
+        cols3: true,
+        fields: [
+          { id: "pumpBrand", label: { ar: "ماركة الطلمبة", en: "Pump Brand" }, type: "text" },
+          { id: "pumpModel", label: { ar: "الموديل", en: "Model" }, type: "text" },
+          { id: "pumpSerial", label: { ar: "السيريال نمبر", en: "Serial Number" }, type: "text" },
+          { id: "pumpPower", label: { ar: "القدرة", en: "Power" }, hint: { ar: "حصان / كيلوواط", en: "HP / kW" }, type: "text" },
+          { id: "pumpStages", label: { ar: "عدد المراحل", en: "Number of Stages" }, type: "text" },
+          { id: "pumpOuterDiameter", label: { ar: "القطر الخارجي", en: "Outer Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
+          { id: "pumpDischargeDiameter", label: { ar: "قطر الطرد", en: "Discharge Diameter" }, hint: { ar: "بوصة", en: "inches" }, type: "text" },
+          { id: "waterQuantity", label: { ar: "كمية المياه", en: "Water Quantity / Flow Rate" }, hint: { ar: "م3/ساعة", en: "m3/hr" }, type: "text" },
+          { id: "pumpInstallDate", label: { ar: "تاريخ التركيب", en: "Installation Date" }, type: "date" },
+          { id: "pumpOperatingHours", label: { ar: "وقت التشغيل", en: "Operating Hours" }, hint: { ar: "ساعة", en: "hours" }, type: "text" },
+        ]
+      },
+      {
+        cols1: true,
+        fields: [ sectionNotesField("pumpNotes", "ملاحظات خاصة بالطلمبة", "Pump-specific Notes") ]
+      }
+    ]
   },
 
   /* =========================================================
@@ -225,21 +264,36 @@ const SECTIONS = [
           { id: "ampL3", label: { ar: "L3", en: "L3" }, hint: { ar: "أمبير", en: "A" }, type: "text" },
         ]
       },
+      {
+        cols1: true,
+        fields: [ sectionNotesField("motorNotes", "ملاحظات خاصة بالموتور", "Motor-specific Notes") ]
+      }
     ]
   },
 
   /* =========================================================
-     5. Power Source
+     5. Power Source (conditional on selection)
   ========================================================= */
   {
     id: "s5",
     title: { ar: "مصدر الكهرباء", en: "Power Source" },
     groups: [
       {
-        label: { ar: "٥.١  الطاقة الشمسية (Solar PV)", en: "5.1  Solar (PV) Option" }, accentClass: "subgroup-solar", cols3: true,
+        fields: [
+          { id: "powerSourceType", label: { ar: "اختر مصدر الكهرباء المستخدم في هذا الموقع", en: "Choose the power source used at this site" },
+            type: "select", options: POWER_SOURCE_OPTIONS, cols: "full", reRenderSection: true },
+        ]
+      },
+      {
+        label: { ar: "الطاقة الشمسية (Solar PV)", en: "Solar (PV) Option" }, accentClass: "subgroup-solar", cols3: true,
+        showIf: { field: "powerSourceType", value: "solar" },
         fields: [
           { id: "panelCount", label: { ar: "إجمالي عدد الألواح", en: "Total Number of Panels" }, type: "text" },
           { id: "panelPower", label: { ar: "قدرة اللوح الواحد", en: "Panel Power" }, hint: { ar: "واط ذروة Wp", en: "Wp" }, type: "text" },
+          { id: "panelVoc", label: { ar: "جهد الدائرة المفتوحة للوح (Voc)", en: "Panel Open-Circuit Voltage (Voc)" }, hint: { ar: "فولت", en: "V" }, type: "text" },
+          { id: "panelVmp", label: { ar: "جهد أقصى قدرة للوح (Vmp)", en: "Panel Max-Power Voltage (Vmp)" }, hint: { ar: "فولت", en: "V" }, type: "text" },
+          { id: "panelIsc", label: { ar: "تيار الدائرة المغلقة للوح (Isc)", en: "Panel Short-Circuit Current (Isc)" }, hint: { ar: "أمبير", en: "A" }, type: "text" },
+          { id: "panelImp", label: { ar: "تيار أقصى قدرة للوح (Imp)", en: "Panel Max-Power Current (Imp)" }, hint: { ar: "أمبير", en: "A" }, type: "text" },
           { id: "panelBrand", label: { ar: "ماركة / موديل اللوح", en: "Panel Brand / Model" }, type: "text" },
           { id: "arrayPower", label: { ar: "إجمالي قدرة المصفوفة", en: "Total PV Array Power" }, hint: { ar: "كيلوواط ذروة kWp", en: "kWp" }, type: "text" },
           { id: "stringConfig", label: { ar: "طريقة توصيل السلاسل (Strings)", en: "String Configuration" }, hint: { ar: "مثال: 2 سلسلة × 12 لوح", en: "e.g. 2 strings x 12 panels" }, type: "text" },
@@ -250,7 +304,8 @@ const SECTIONS = [
         ]
       },
       {
-        label: { ar: "٥.٢  المولد الديزل", en: "5.2  Diesel Generator Option" }, accentClass: "subgroup-diesel", cols3: true,
+        label: { ar: "المولد الديزل", en: "Diesel Generator Option" }, accentClass: "subgroup-diesel", cols3: true,
+        showIf: { field: "powerSourceType", value: "diesel" },
         fields: [
           { id: "genCapacity", label: { ar: "القدرة الفعلية للمولد", en: "Generator Actual Capacity" }, hint: { ar: "kVA", en: "kVA" }, type: "text" },
           { id: "genBrand", label: { ar: "ماركة / نوع المولد", en: "Generator Brand / Type" }, type: "text" },
@@ -260,7 +315,8 @@ const SECTIONS = [
         ]
       },
       {
-        label: { ar: "٥.٣  محول الشبكة الكهربائية", en: "5.3  Grid / Transformer Option" }, accentClass: "subgroup-grid", cols3: true,
+        label: { ar: "محول الشبكة الكهربائية", en: "Grid / Transformer Option" }, accentClass: "subgroup-grid", cols3: true,
+        showIf: { field: "powerSourceType", value: "grid" },
         fields: [
           { id: "gridVoltage", label: { ar: "جهد الدخول الفعلي المقاس", en: "Measured Actual Input Voltage" }, hint: { ar: "فولت، بين خطين / خط وحيادي", en: "V, L-L / L-N" }, type: "text" },
           { id: "gridFreq", label: { ar: "التردد", en: "Frequency" }, hint: { ar: "هرتز", en: "Hz" }, type: "text" },
@@ -269,6 +325,10 @@ const SECTIONS = [
           { id: "voltageStability", label: { ar: "استقرار الجهد", en: "Voltage Stability" }, hint: { ar: "تذبذب ملحوظ إن وجد", en: "fluctuation observed" }, type: "text" },
         ]
       },
+      {
+        cols1: true,
+        fields: [ sectionNotesField("powerNotes", "ملاحظات خاصة بمصدر الكهرباء", "Power Source Notes") ]
+      }
     ]
   },
 
@@ -280,7 +340,7 @@ const SECTIONS = [
     title: { ar: "مواصفات لوحة التشغيل والتحكم", en: "Control Panel Specifications" },
     groups: [
       {
-        label: { ar: "٦.١  مكونات لوحة الكهرباء", en: "6.1  Electrical Panel Components" }, accentClass: "subgroup-grid", cols3: true,
+        label: { ar: "مكونات لوحة الكهرباء", en: "Electrical Panel Components" }, accentClass: "subgroup-grid", cols3: true,
         fields: [
           { id: "compMccb", label: { ar: "MCCB (قاطع عمومي)", en: "MCCB (Main Breaker)" }, type: "select", options: PRESENT_OPTIONS },
           { id: "compMcp", label: { ar: "MCP قاطع أحادي القطب (1 Pole)", en: "MCP (1 Pole Breaker)" }, type: "select", options: PRESENT_OPTIONS },
@@ -311,6 +371,10 @@ const SECTIONS = [
           { id: "panelLocation", label: { ar: "موقع تركيب اللوحة", en: "Panel Mounting Location" }, hint: { ar: "المسافة من رأس البئر، التعرض للشمس", en: "distance from wellhead, sun exposure" }, type: "text" },
           { id: "earthing", label: { ar: "وجود نظام تأريض (Earthing)؟", en: "Earthing / Grounding System Present?" }, type: "select", options: YN_OPTIONS },
         ]
+      },
+      {
+        cols1: true,
+        fields: [ sectionNotesField("panelNotes", "ملاحظات خاصة بلوحة التحكم", "Control Panel Notes") ]
       }
     ]
   },
@@ -321,20 +385,26 @@ const SECTIONS = [
   {
     id: "s7",
     title: { ar: "الكابلات والتشغيل والمسافات", en: "Cables, Routing & Distances" },
-    groups: [{
-      fields: [
-        { id: "cableCrossSection", label: { ar: "مساحة مقطع الكابل الغاطس", en: "Submersible Cable Cross-Section" }, hint: { ar: "مم2", en: "mm2" }, type: "text" },
-        { id: "cableLength", label: { ar: "طول الكابل الغاطس (داخل البئر)", en: "Submersible Cable Length (in well)" }, hint: { ar: "متر", en: "meters" }, type: "text" },
-        { id: "conductorMaterial", label: { ar: "مادة الموصل", en: "Conductor Material" }, hint: { ar: "نحاس / ألومنيوم", en: "copper / aluminum" }, type: "text" },
-        { id: "cableType", label: { ar: "نوع الكابل / تصنيف العزل", en: "Cable Type / Insulation Rating" }, hint: { ar: "مثال: NYY", en: "e.g. NYY" }, type: "text" },
-        { id: "distWellPanel", label: { ar: "المسافة الأفقية: البئر إلى اللوحة", en: "Horizontal Distance: Well → Control Panel" }, hint: { ar: "متر", en: "meters" }, type: "text" },
-        { id: "distPanelSource", label: { ar: "المسافة الأفقية: اللوحة إلى مصدر الكهرباء", en: "Horizontal Distance: Panel → Power Source" }, hint: { ar: "متر", en: "meters" }, type: "text" },
-        { id: "distPanelPv", label: { ar: "مسافة كابل الألواح الشمسية إلى اللوحة", en: "PV Array Cable Distance to Panel" }, hint: { ar: "متر", en: "meters" }, type: "text" },
-        { id: "routeCondition", label: { ar: "حالة مسار الكابل", en: "Cable Route Condition" }, hint: { ar: "مدفون / خندق / مكشوف، عوائق", en: "buried / trenched / open, obstacles" }, type: "text" },
-        { id: "voltageDrop", label: { ar: "هل مطلوب حساب هبوط الجهد؟", en: "Voltage Drop Calculation Needed?" }, type: "select", options: YN_OPTIONS },
-        { id: "cableProtection", label: { ar: "طريقة حماية الكابل", en: "Cable Protection Method" }, hint: { ar: "مواسير / قنوات / دفن مباشر", en: "conduit / duct / direct burial" }, type: "text" },
-      ]
-    }]
+    groups: [
+      {
+        fields: [
+          { id: "cableCrossSection", label: { ar: "مساحة مقطع الكابل الغاطس", en: "Submersible Cable Cross-Section" }, hint: { ar: "مم2", en: "mm2" }, type: "text" },
+          { id: "cableLength", label: { ar: "طول الكابل الغاطس (داخل البئر)", en: "Submersible Cable Length (in well)" }, hint: { ar: "متر", en: "meters" }, type: "text" },
+          { id: "conductorMaterial", label: { ar: "مادة الموصل", en: "Conductor Material" }, hint: { ar: "نحاس / ألومنيوم", en: "copper / aluminum" }, type: "text" },
+          { id: "cableType", label: { ar: "نوع الكابل / تصنيف العزل", en: "Cable Type / Insulation Rating" }, hint: { ar: "مثال: NYY", en: "e.g. NYY" }, type: "text" },
+          { id: "distWellPanel", label: { ar: "المسافة الأفقية: البئر إلى اللوحة", en: "Horizontal Distance: Well → Control Panel" }, hint: { ar: "متر", en: "meters" }, type: "text" },
+          { id: "distPanelSource", label: { ar: "المسافة الأفقية: اللوحة إلى مصدر الكهرباء", en: "Horizontal Distance: Panel → Power Source" }, hint: { ar: "متر", en: "meters" }, type: "text" },
+          { id: "distPanelPv", label: { ar: "مسافة كابل الألواح الشمسية إلى اللوحة", en: "PV Array Cable Distance to Panel" }, hint: { ar: "متر", en: "meters" }, type: "text" },
+          { id: "routeCondition", label: { ar: "حالة مسار الكابل", en: "Cable Route Condition" }, hint: { ar: "مدفون / خندق / مكشوف، عوائق", en: "buried / trenched / open, obstacles" }, type: "text" },
+          { id: "voltageDrop", label: { ar: "هل مطلوب حساب هبوط الجهد؟", en: "Voltage Drop Calculation Needed?" }, type: "select", options: YN_OPTIONS },
+          { id: "cableProtection", label: { ar: "طريقة حماية الكابل", en: "Cable Protection Method" }, hint: { ar: "مواسير / قنوات / دفن مباشر", en: "conduit / duct / direct burial" }, type: "text" },
+        ]
+      },
+      {
+        cols1: true,
+        fields: [ sectionNotesField("cableNotes", "ملاحظات خاصة بالكابلات", "Cables & Routing Notes") ]
+      }
+    ]
   },
 
   /* =========================================================
@@ -369,9 +439,12 @@ const SECTIONS = [
     groups: [{
       fields: [
         { id: "engineerSign", label: { ar: "اسم وتوقيع المهندس القائم بالمعاينة", en: "Surveying Engineer Name & Signature" }, type: "text" },
-        { id: "clientSign", label: { ar: "اسم وتوقيع ممثل العميل / الموقع", en: "Client / Site Representative Name & Signature" }, type: "text" },
+        { id: "clientSignName", label: { ar: "اسم ممثل العميل / الموقع", en: "Client / Site Representative Name" }, type: "text" },
+        { id: "clientSignature", label: { ar: "توقيع العميل", en: "Client Signature" },
+          hint: { ar: "توقيع إلكتروني مباشر كضمان رسمي بمعاينة الموقع", en: "Direct e-signature as formal confirmation of the site survey" },
+          type: "signature", cols: "full" },
         { id: "signDate", label: { ar: "التاريخ", en: "Date" }, type: "date" },
-        { id: "companyStamp", label: { ar: "ختم الشركة", en: "Company Stamp" }, type: "text" },
+        { id: "companyStamp", label: { ar: "ختم الشركة المعتمد", en: "Official Company Stamp" }, type: "stamp" },
       ]
     }]
   },
