@@ -144,7 +144,7 @@
 
     if (currentSurveyId) {
       const printBtn = mkBtn(t("print_btn"), "btn btn-outline");
-      printBtn.addEventListener("click", () => window.print());
+      printBtn.addEventListener("click", () => { buildPrintDoc(); window.print(); });
       wrap.appendChild(printBtn);
 
       const exportBtn = mkBtn(t("export_json"), "btn btn-outline");
@@ -677,7 +677,7 @@
       const videos = formData[field.id] || [];
       videos.forEach((src, i) => {
         const th = document.createElement("div");
-        th.className = "photo-thumb";
+        th.className = "photo-thumb video-thumb";
         th.innerHTML = `<video src="${src}" muted style="width:100%;height:100%;object-fit:cover;"></video><button class="rm" type="button">✕</button>`;
         th.querySelector(".rm").addEventListener("click", () => {
           videos.splice(i, 1);
@@ -752,146 +752,255 @@
     label.textContent = field.label[currentLang];
     wrap.appendChild(label);
 
-    if (field.hint) {
+    // ---- Mode toggle: signature (draw) vs fingerprint (photo) ----
+    const modeKey = field.id + "Mode";
+    let mode = formData[modeKey] || "signature";
+
+    const toggleRow = document.createElement("div");
+    toggleRow.className = "sig-mode-toggle";
+    toggleRow.style.cssText = "display:flex;gap:8px;margin:4px 0 8px;";
+
+    function mkModeBtn(value, textKey) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = t(textKey);
+      b.dataset.mode = value;
+      b.style.cssText = "flex:1;padding:8px 10px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--ink);transition:all .15s ease;";
+      return b;
+    }
+    const btnSig = mkModeBtn("signature", "sig_mode_signature");
+    const btnFp = mkModeBtn("fingerprint", "sig_mode_fingerprint");
+    toggleRow.appendChild(btnSig);
+    toggleRow.appendChild(btnFp);
+    wrap.appendChild(toggleRow);
+
+    function styleActive() {
+      [btnSig, btnFp].forEach(b => {
+        const active = b.dataset.mode === mode;
+        b.style.background = active ? "var(--navy)" : "#fff";
+        b.style.color = active ? "#fff" : "var(--ink)";
+        b.style.borderColor = active ? "var(--navy)" : "var(--border)";
+      });
+    }
+
+    const bodyWrap = document.createElement("div");
+    wrap.appendChild(bodyWrap);
+
+    function setMode(newMode) {
+      mode = newMode;
+      formData[modeKey] = mode;
+      persistCurrent();
+      styleActive();
+      bodyWrap.innerHTML = "";
+      if (mode === "signature") buildSignaturePad(); else buildFingerprintCapture();
+    }
+    btnSig.addEventListener("click", () => setMode("signature"));
+    btnFp.addEventListener("click", () => setMode("fingerprint"));
+
+    /* ---------- Signature pad (draw) ---------- */
+    function buildSignaturePad() {
       const hint = document.createElement("div");
       hint.className = "hint";
-      hint.textContent = field.hint[currentLang];
-      wrap.appendChild(hint);
+      hint.textContent = t("signature_hint");
+      hint.style.marginBottom = "6px";
+      bodyWrap.appendChild(hint);
+
+      const box = document.createElement("div");
+      box.style.cssText = "border:1.5px dashed var(--border);border-radius:10px;background:#fff;touch-action:none;position:relative;overflow:hidden;";
+
+      const canvas = document.createElement("canvas");
+      canvas.style.cssText = "width:100%;height:160px;display:block;cursor:crosshair;";
+      box.appendChild(canvas);
+
+      const placeholder = document.createElement("div");
+      placeholder.textContent = t("signature_hint");
+      placeholder.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none;";
+      box.appendChild(placeholder);
+      bodyWrap.appendChild(box);
+
+      const actionsRow = document.createElement("div");
+      actionsRow.className = "sig-toolbar";
+      actionsRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:8px;";
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.textContent = t("signature_clear");
+      clearBtn.style.cssText = "background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;";
+      actionsRow.appendChild(clearBtn);
+      bodyWrap.appendChild(actionsRow);
+
+      function setupCanvas() {
+        const ratio = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = 160 * ratio;
+        const c = canvas.getContext("2d");
+        c.scale(ratio, ratio);
+        c.lineWidth = 2.2;
+        c.lineCap = "round";
+        c.strokeStyle = "#1B2333";
+        return c;
+      }
+
+      let ctx = null;
+      let drawing = false;
+      let hasInk = mode === "signature" && !!formData[field.id];
+
+      function loadExistingInk() {
+        if (!hasInk || !ctx) return;
+        placeholder.style.display = "none";
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, 160);
+        img.src = formData[field.id];
+      }
+
+      requestAnimationFrame(() => { ctx = setupCanvas(); loadExistingInk(); });
+
+      let resizeTimer;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (!wrap.isConnected || mode !== "signature") return;
+          const savedInk = hasInk ? canvas.toDataURL("image/png") : null;
+          ctx = setupCanvas();
+          if (savedInk) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, 160);
+            img.src = savedInk;
+          }
+        }, 200);
+      });
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const point = e.touches ? e.touches[0] : e;
+        return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+      }
+      function start(e) {
+        if (!ctx) return;
+        e.preventDefault();
+        drawing = true;
+        placeholder.style.display = "none";
+        const p = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+      }
+      function move(e) {
+        if (!drawing || !ctx) return;
+        e.preventDefault();
+        const p = getPos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+      function end() {
+        if (!drawing) return;
+        drawing = false;
+        hasInk = true;
+        formData[field.id] = canvas.toDataURL("image/png");
+        persistCurrent();
+        updateProgress();
+        updateSectionCounts();
+      }
+      canvas.addEventListener("mousedown", start);
+      canvas.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", end);
+      canvas.addEventListener("touchstart", start, { passive: false });
+      canvas.addEventListener("touchmove", move, { passive: false });
+      canvas.addEventListener("touchend", end);
+
+      clearBtn.addEventListener("click", () => {
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        placeholder.style.display = "flex";
+        hasInk = false;
+        formData[field.id] = "";
+        persistCurrent();
+        updateProgress();
+        updateSectionCounts();
+      });
     }
 
-    const box = document.createElement("div");
-    box.style.border = "1.5px dashed var(--border)";
-    box.style.borderRadius = "10px";
-    box.style.background = "#fff";
-    box.style.touchAction = "none";
-    box.style.position = "relative";
-    box.style.overflow = "hidden";
+    /* ---------- Fingerprint capture (camera photo) ---------- */
+    function buildFingerprintCapture() {
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.textContent = t("fingerprint_hint");
+      hint.style.marginBottom = "6px";
+      bodyWrap.appendChild(hint);
 
-    const canvas = document.createElement("canvas");
-    canvas.style.width = "100%";
-    canvas.style.height = "160px";
-    canvas.style.display = "block";
-    canvas.style.cursor = "crosshair";
-    box.appendChild(canvas);
+      const preview = document.createElement("div");
+      preview.style.cssText = "border:1.5px dashed var(--border);border-radius:10px;background:#fff;min-height:120px;display:flex;align-items:center;justify-content:center;overflow:hidden;";
+      bodyWrap.appendChild(preview);
 
-    const placeholder = document.createElement("div");
-    placeholder.textContent = t("signature_hint");
-    placeholder.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none;";
-    box.appendChild(placeholder);
+      function paintPreview() {
+        const val = mode === "fingerprint" ? formData[field.id] : "";
+        preview.innerHTML = val
+          ? `<img src="${val}" style="max-width:100%;max-height:160px;object-fit:contain;">`
+          : `<span style="color:var(--muted);font-size:12.5px;">—</span>`;
+      }
+      paintPreview();
 
-    wrap.appendChild(box);
+      const actionsRow = document.createElement("div");
+      actionsRow.className = "sig-toolbar";
+      actionsRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:8px;";
 
-    const actionsRow = document.createElement("div");
-    actionsRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:8px;";
-    const clearBtn = document.createElement("button");
-    clearBtn.type = "button";
-    clearBtn.textContent = t("signature_clear");
-    clearBtn.style.cssText = "background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;";
-    actionsRow.appendChild(clearBtn);
-    wrap.appendChild(actionsRow);
+      const captureBtn = document.createElement("label");
+      const hasExisting = !!formData[field.id] && mode === "fingerprint";
+      captureBtn.textContent = t(hasExisting ? "fingerprint_retake_btn" : "fingerprint_capture_btn");
+      captureBtn.style.cssText = "background:var(--navy);color:#fff;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;";
 
-    function setupCanvas() {
-      const ratio = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * ratio;
-      canvas.height = 160 * ratio;
-      const ctx = canvas.getContext("2d");
-      ctx.scale(ratio, ratio);
-      ctx.lineWidth = 2.2;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#1B2333";
-      return ctx;
-    }
-
-    let ctx = null;
-    let drawing = false;
-    let hasInk = !!formData[field.id];
-
-    function loadExistingInk() {
-      if (!hasInk || !ctx) return;
-      placeholder.style.display = "none";
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, 160);
-      img.src = formData[field.id];
-    }
-
-    // setupCanvas() reads getBoundingClientRect(), which only returns real
-    // dimensions once the element is actually attached and laid out in the
-    // live document. renderSignatureField() runs before the caller appends
-    // this node to the page, so we defer sizing to the next animation frame
-    // (by then the synchronous appendChild in the caller has already run).
-    requestAnimationFrame(() => {
-      ctx = setupCanvas();
-      loadExistingInk();
-    });
-
-    // Re-fit the canvas if the container is resized (e.g. orientation change)
-    // without losing anything already drawn.
-    let resizeTimer;
-    window.addEventListener("resize", () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        if (!wrap.isConnected) return;
-        const savedInk = hasInk ? canvas.toDataURL("image/png") : null;
-        ctx = setupCanvas();
-        if (savedInk) {
-          const img = new Image();
-          img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, 160);
-          img.src = savedInk;
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.capture = "environment";
+      fileInput.hidden = true;
+      fileInput.addEventListener("change", async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        captureBtn.textContent = t("uploading");
+        try {
+          const compressed = await compressImage(file);
+          formData[field.id] = compressed;
+          persistCurrent();
+          updateProgress();
+          updateSectionCounts();
+          paintPreview();
+        } catch (err) {
+          alert(t("upload_error"));
         }
-      }, 200);
-    });
-
-    function getPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      const point = e.touches ? e.touches[0] : e;
-      return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+        captureBtn.textContent = t(formData[field.id] ? "fingerprint_retake_btn" : "fingerprint_capture_btn");
+        fileInput.value = "";
+      });
+      captureBtn.appendChild(fileInput);
+      actionsRow.appendChild(captureBtn);
+      bodyWrap.appendChild(actionsRow);
     }
 
-    function start(e) {
-      if (!ctx) return;
-      e.preventDefault();
-      drawing = true;
-      placeholder.style.display = "none";
-      const p = getPos(e);
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-    }
-    function move(e) {
-      if (!drawing || !ctx) return;
-      e.preventDefault();
-      const p = getPos(e);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-    }
-    function end() {
-      if (!drawing) return;
-      drawing = false;
-      hasInk = true;
-      formData[field.id] = canvas.toDataURL("image/png");
-      persistCurrent();
-      updateProgress();
-      updateSectionCounts();
-    }
-
-    canvas.addEventListener("mousedown", start);
-    canvas.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", end);
-    canvas.addEventListener("touchstart", start, { passive: false });
-    canvas.addEventListener("touchmove", move, { passive: false });
-    canvas.addEventListener("touchend", end);
-
-    clearBtn.addEventListener("click", () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      placeholder.style.display = "flex";
-      hasInk = false;
-      formData[field.id] = "";
-      persistCurrent();
-      updateProgress();
-      updateSectionCounts();
-    });
+    styleActive();
+    if (mode === "signature") buildSignaturePad(); else buildFingerprintCapture();
 
     return wrap;
+  }
+
+  function stampSvgMarkup(idSuffix) {
+    return `
+      <svg width="130" height="130" viewBox="0 0 200 200" style="opacity:.88;">
+        <defs>
+          <path id="stampCircleTop_${idSuffix}" d="M 30,100 A 70,70 0 0 1 170,100" fill="none"/>
+          <path id="stampCircleBottom_${idSuffix}" d="M 170,100 A 70,70 0 0 1 30,100" fill="none"/>
+        </defs>
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#1F2C5C" stroke-width="3"/>
+        <circle cx="100" cy="100" r="80" fill="none" stroke="#1F2C5C" stroke-width="1.4"/>
+        <text font-size="12.5" font-weight="700" fill="#1F2C5C" letter-spacing="2">
+          <textPath href="#stampCircleTop_${idSuffix}" startOffset="50%" text-anchor="middle">PM TECH WATER SOLUTIONS</textPath>
+        </text>
+        <text font-size="10.5" font-weight="600" fill="#1F2C5C" letter-spacing="1.5">
+          <textPath href="#stampCircleBottom_${idSuffix}" startOffset="50%" text-anchor="middle">SITE SURVEY • CERTIFIED</textPath>
+        </text>
+        <g transform="translate(100,100)">
+          <polygon points="-24,-22 4,4 -24,30" fill="#1F2C5C" transform="translate(-6,-6) scale(0.9)"/>
+          <polygon points="-24,-6 22,14 22,-2 -24,-22" fill="#6FBE44" transform="translate(-6,-6) scale(0.9)"/>
+        </g>
+      </svg>
+    `;
   }
 
   function renderStampField(field) {
@@ -902,28 +1011,10 @@
     wrap.appendChild(label);
 
     const stampWrap = document.createElement("div");
+    stampWrap.className = "stamp-wrap";
     stampWrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;";
-    stampWrap.innerHTML = `
-      <svg width="130" height="130" viewBox="0 0 200 200" style="opacity:.88;">
-        <defs>
-          <path id="stampCircleTop_${field.id}" d="M 30,100 A 70,70 0 0 1 170,100" fill="none"/>
-          <path id="stampCircleBottom_${field.id}" d="M 170,100 A 70,70 0 0 1 30,100" fill="none"/>
-        </defs>
-        <circle cx="100" cy="100" r="92" fill="none" stroke="#1F2C5C" stroke-width="3"/>
-        <circle cx="100" cy="100" r="80" fill="none" stroke="#1F2C5C" stroke-width="1.4"/>
-        <text font-size="12.5" font-weight="700" fill="#1F2C5C" letter-spacing="2">
-          <textPath href="#stampCircleTop_${field.id}" startOffset="50%" text-anchor="middle">PM TECH WATER SOLUTIONS</textPath>
-        </text>
-        <text font-size="10.5" font-weight="600" fill="#1F2C5C" letter-spacing="1.5">
-          <textPath href="#stampCircleBottom_${field.id}" startOffset="50%" text-anchor="middle">SITE SURVEY • CERTIFIED</textPath>
-        </text>
-        <g transform="translate(100,100)">
-          <polygon points="-24,-22 4,4 -24,30" fill="#1F2C5C" transform="translate(-6,-6) scale(0.9)"/>
-          <polygon points="-24,-6 22,14 22,-2 -24,-22" fill="#6FBE44" transform="translate(-6,-6) scale(0.9)"/>
-        </g>
-      </svg>
-      <div style="font-size:11px;color:var(--muted);text-align:center;max-width:200px;">${t("stamp_caption")}</div>
-    `;
+    stampWrap.innerHTML = stampSvgMarkup(field.id) +
+      `<div style="font-size:11px;color:var(--muted);text-align:center;max-width:200px;">${t("stamp_caption")}</div>`;
     wrap.appendChild(stampWrap);
     return wrap;
   }
@@ -1007,7 +1098,9 @@
 
   function groupVisible(group) {
     if (!group.showIf) return true;
-    return formData[group.showIf.field] === group.showIf.value;
+    const current = formData[group.showIf.field];
+    if (Array.isArray(group.showIf.values)) return group.showIf.values.includes(current);
+    return current === group.showIf.value;
   }
 
   function buildSectionBody(sec) {
@@ -1075,6 +1168,154 @@
     SECTIONS.forEach((sec, i) => sectionsEl.appendChild(renderSection(sec, i)));
     updateProgress();
     updateSectionCounts();
+  }
+
+  /* =========================================================
+     COMPACT PRINT DOCUMENT
+     Built fresh right before printing. Shows ONLY fields that
+     actually have data, as dense flowing text (never a bounded
+     box), so nothing can ever be clipped and the page count
+     stays as small as the real content allows.
+  ========================================================= */
+  function fieldHasValue(field) {
+    const v = formData[field.id];
+    if (field.type === "photos" || field.type === "video") return Array.isArray(v) && v.length > 0;
+    if (field.type === "signature") return !!v;
+    if (field.type === "stamp") return false;
+    return v !== undefined && v !== null && String(v).trim().length > 0;
+  }
+
+  function fieldDisplayValue(field) {
+    const v = formData[field.id];
+    if (field.type === "select") {
+      const opt = (field.options || []).find(o => o.id === v);
+      return opt ? opt[currentLang] : v;
+    }
+    return v;
+  }
+
+  function groupAccentColor(cls) {
+    if (cls === "subgroup-solar") return "#4C8E33";
+    if (cls === "subgroup-diesel") return "#8E7A33";
+    if (cls === "subgroup-grid") return "#33628E";
+    return "#1F2C5C";
+  }
+
+  function pdocPhotosBlock(field) {
+    const wrap = document.createElement("div");
+    wrap.className = "pdoc-field wide";
+    const title = document.createElement("div");
+    title.innerHTML = `<b>${escapeHtml(field.label[currentLang])}</b>`;
+    wrap.appendChild(title);
+    const grid = document.createElement("div");
+    grid.className = "pdoc-photos";
+    (formData[field.id] || []).forEach(src => {
+      const img = document.createElement("img");
+      img.src = src;
+      grid.appendChild(img);
+    });
+    wrap.appendChild(grid);
+    return wrap;
+  }
+
+  function pdocVideoBlock(field) {
+    const wrap = document.createElement("div");
+    wrap.className = "pdoc-field wide";
+    const count = (formData[field.id] || []).length;
+    const note = currentLang === "ar"
+      ? `${count} فيديو مرفق (غير قابل للطباعة — متاح داخل الموقع)`
+      : `${count} video(s) attached (not printable — available in the app)`;
+    wrap.innerHTML = `<b>${escapeHtml(field.label[currentLang])}:</b> <span class="pdoc-video-note">${escapeHtml(note)}</span>`;
+    return wrap;
+  }
+
+  function pdocSignatureBlock(field) {
+    const wrap = document.createElement("div");
+    wrap.className = "pdoc-field wide pdoc-sig";
+    const src = formData[field.id];
+    const modeVal = formData[field.id + "Mode"] || "signature";
+    const modeLabel = t(modeVal === "fingerprint" ? "sig_mode_fingerprint" : "sig_mode_signature");
+    wrap.innerHTML = `<div><b>${escapeHtml(field.label[currentLang])}</b> (${escapeHtml(modeLabel)})</div>` +
+      (src ? `<img src="${src}">` : "");
+    return wrap;
+  }
+
+  function buildPrintDoc() {
+    const container = document.getElementById("printDoc");
+    if (!container) return;
+    container.innerHTML = "";
+
+    SECTIONS.forEach(sec => {
+      const visibleGroups = sec.groups.filter(groupVisible);
+      let anyContent = false;
+      visibleGroups.forEach(g => g.fields.forEach(f => {
+        if (f.type === "stamp" || fieldHasValue(f)) anyContent = true;
+      }));
+      if (!anyContent) return;
+
+      const secEl = document.createElement("div");
+      secEl.className = "pdoc-section";
+
+      const head = document.createElement("div");
+      head.className = "pdoc-section-head";
+      head.textContent = sec.title[currentLang];
+      secEl.appendChild(head);
+
+      visibleGroups.forEach(g => {
+        const groupFields = g.fields.filter(f => f.type !== "stamp" && fieldHasValue(f));
+        const stampField = g.fields.find(f => f.type === "stamp");
+
+        if (g.label && (groupFields.length > 0 || stampField)) {
+          const sub = document.createElement("div");
+          sub.className = "pdoc-subhead";
+          sub.style.background = groupAccentColor(g.accentClass);
+          sub.textContent = g.label[currentLang];
+          secEl.appendChild(sub);
+        }
+
+        if (groupFields.length > 0) {
+          const wrap = document.createElement("div");
+          wrap.className = "pdoc-fields";
+          groupFields.forEach(f => {
+            if (f.type === "photos") { wrap.appendChild(pdocPhotosBlock(f)); return; }
+            if (f.type === "video") { wrap.appendChild(pdocVideoBlock(f)); return; }
+            if (f.type === "signature") { wrap.appendChild(pdocSignatureBlock(f)); return; }
+            const chip = document.createElement("div");
+            const isWide = f.type === "textarea" || f.type === "gps";
+            chip.className = "pdoc-field" + (isWide ? " wide" : "");
+            const val = fieldDisplayValue(f);
+            chip.innerHTML = `<b>${escapeHtml(f.label[currentLang])}:</b> ${escapeHtml(String(val))}`;
+            wrap.appendChild(chip);
+          });
+          secEl.appendChild(wrap);
+        }
+
+        if (stampField) {
+          const stampBlock = document.createElement("div");
+          stampBlock.className = "pdoc-sig pdoc-stamp";
+          stampBlock.innerHTML = stampSvgMarkup("print_" + stampField.id) +
+            `<div style="font-size:7.5pt;color:#555;">${t("stamp_caption")}</div>`;
+          secEl.appendChild(stampBlock);
+        }
+      });
+
+      container.appendChild(secEl);
+    });
+
+    if (!container.children.length) {
+      const empty = document.createElement("div");
+      empty.className = "pdoc-empty-note";
+      empty.textContent = currentLang === "ar" ? "لا توجد بيانات مدخلة بعد في هذه المعاينة." : "No data has been entered in this survey yet.";
+      container.appendChild(empty);
+    }
+  }
+
+  window.addEventListener("beforeprint", buildPrintDoc);
+  if (window.matchMedia) {
+    const printMql = window.matchMedia("print");
+    const onPrintChange = (e) => { if (e.matches) buildPrintDoc(); };
+    if (printMql.addEventListener) printMql.addEventListener("change", onPrintChange);
+    else if (printMql.addListener) printMql.addListener(onPrintChange);
   }
 
   /* =========================================================
