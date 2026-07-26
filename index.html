@@ -325,14 +325,52 @@
   .btn-navy:hover{ background:var(--navy-ink); }
 
   /* ================= Print ================= */
+  .print-doc{ display:none; }
+
   @media print{
-    .lock-screen, header.topbar, .hero-meta, .btn, .rail-track, footer .btn, .dash-toolbar, .gps-map-btn { display:none !important; }
-    body{ background:#fff; }
-    .section-card{ box-shadow:none; border:1px solid #ccc; break-inside:avoid; margin-bottom:10px; opacity:1 !important; transform:none !important; }
-    .work-area{ grid-template-columns:1fr; }
-    .rail-track{ display:none; }
-    .section-card.collapsed .section-body{ display:grid !important; }
-    .section-card.collapsed .chev{ display:none; }
+    @page { size: A4; margin: 10mm 9mm; }
+
+    .lock-screen, header.topbar, .hero-meta, .btn, footer .btn, .dash-toolbar { display:none !important; }
+
+    html, body{ background:#fff; font-size:9pt; line-height:1.35; color:#000; }
+    .shell{ max-width:100%; padding:0; }
+    .detail-hero{ padding:0 0 2mm; }
+    .detail-hero h1{ font-size:14pt; margin:0; color:#000; }
+    .back-link{ display:none !important; }
+
+    /* Hide the interactive form entirely; show only the compact print doc */
+    .work-area{ display:none !important; }
+    .print-doc{ display:block !important; }
+
+    .pdoc-section{ break-inside:avoid-page; margin-bottom:2.6mm; }
+    .pdoc-section-head{
+      background:#1F2C5C !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;
+      color:#fff !important; font-weight:800; font-size:10pt; padding:1.6mm 3mm;
+      border-bottom:1.4pt solid #6FBE44;
+    }
+    .pdoc-subhead{
+      font-weight:800; font-size:8pt; color:#fff !important; padding:1mm 3mm; margin-top:1.5mm;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    .pdoc-fields{
+      display:flex; flex-wrap:wrap; gap:0 6mm; padding:1.6mm 3mm 0.5mm;
+      border:0.5pt solid #ccc; border-top:none;
+    }
+    .pdoc-field{ font-size:8.3pt; padding-bottom:1.3mm; break-inside:avoid; max-width:100%; }
+    .pdoc-field b{ color:#1F2C5C; }
+    .pdoc-field.wide{ flex-basis:100%; }
+    .pdoc-empty-note{ font-size:7.6pt; color:#888; font-style:italic; padding:1.6mm 3mm; }
+
+    .pdoc-photos{ display:flex; flex-wrap:wrap; gap:1.6mm; padding:1.6mm 3mm; border:0.5pt solid #ccc; border-top:none; }
+    .pdoc-photos img{ width:26mm; height:26mm; object-fit:cover; border:0.5pt solid #ccc; }
+    .pdoc-video-note{ font-size:7.6pt; color:#555; }
+
+    .pdoc-sig{ padding:1.6mm 3mm; border:0.5pt solid #ccc; border-top:none; display:flex; align-items:center; gap:6mm; flex-wrap:wrap; }
+    .pdoc-sig img{ max-height:22mm; max-width:60mm; border-bottom:0.5pt solid #999; }
+    .pdoc-stamp svg{ width:70px; height:70px; }
+
+    footer{ padding:2mm 0 0; font-size:6.5pt; }
+    footer .logo-row svg{ width:10px; height:10px; }
   }
 </style>
 </head>
@@ -419,6 +457,11 @@
         <div class="rail-track"><div class="rail-fill" id="railFill"></div></div>
         <main class="sections" id="sections"></main>
       </div>
+
+      <!-- Populated by JS right before printing: compact, filled-fields-only,
+           plain-text layout so nothing ever gets clipped and the page count
+           stays as small as the actual entered data allows. -->
+      <div id="printDoc" class="print-doc"></div>
     </div>
 
     <footer>
