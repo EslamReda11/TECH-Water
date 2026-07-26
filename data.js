@@ -91,6 +91,14 @@ const UI_TEXT = {
   /* Signature & stamp */
   signature_clear: { ar: "مسح التوقيع", en: "Clear Signature" },
   signature_hint: { ar: "وقّع هنا بإصبعك أو الماوس", en: "Sign here with your finger or mouse" },
+  sig_mode_signature: { ar: "توقيع", en: "Signature" },
+  sig_mode_fingerprint: { ar: "بصمة", en: "Fingerprint" },
+  fingerprint_hint: {
+    ar: "التقط صورة لبصمة إصبع العميل (بعد وضع الحبر على الورق) كدليل توثيقي. ملحوظة: المتصفح لا يقدر يقرأ بصمة إصبع حقيقية إلكترونيًا، فده توثيق بالصورة فقط.",
+    en: "Take a photo of the client's inked fingerprint as documentary evidence. Note: a browser cannot electronically scan a real biometric fingerprint — this is photographic documentation only."
+  },
+  fingerprint_capture_btn: { ar: "تصوير البصمة", en: "Capture Fingerprint Photo" },
+  fingerprint_retake_btn: { ar: "إعادة التصوير", en: "Retake Photo" },
   signature_saved: { ar: "تم حفظ التوقيع ✓", en: "Signature saved ✓" },
   stamp_caption: { ar: "معتمد رسميًا من PM TECH Water Solutions", en: "Officially certified by PM TECH Water Solutions" },
 
@@ -124,6 +132,8 @@ const POWER_SOURCE_OPTIONS = [
   { id: "solar", ar: "الطاقة الشمسية (Solar PV)", en: "Solar PV" },
   { id: "diesel", ar: "المولد (الديزل)", en: "Diesel Generator" },
   { id: "grid", ar: "محول الشبكة الكهربائية", en: "Grid Transformer" },
+  { id: "solar_diesel", ar: "الطاقة الشمسية (Solar PV) مع مولد", en: "Solar PV with Generator" },
+  { id: "solar_grid", ar: "الطاقة الشمسية (Solar PV) مع محول الشبكة الكهربائية", en: "Solar PV with Grid Transformer" },
 ];
 
 function sectionNotesField(id, labelAr, labelEn) {
@@ -286,7 +296,7 @@ const SECTIONS = [
       },
       {
         label: { ar: "الطاقة الشمسية (Solar PV)", en: "Solar (PV) Option" }, accentClass: "subgroup-solar", cols3: true,
-        showIf: { field: "powerSourceType", value: "solar" },
+        showIf: { field: "powerSourceType", values: ["solar", "solar_diesel", "solar_grid"] },
         fields: [
           { id: "panelCount", label: { ar: "إجمالي عدد الألواح", en: "Total Number of Panels" }, type: "text" },
           { id: "panelPower", label: { ar: "قدرة اللوح الواحد", en: "Panel Power" }, hint: { ar: "واط ذروة Wp", en: "Wp" }, type: "text" },
@@ -305,7 +315,7 @@ const SECTIONS = [
       },
       {
         label: { ar: "المولد الديزل", en: "Diesel Generator Option" }, accentClass: "subgroup-diesel", cols3: true,
-        showIf: { field: "powerSourceType", value: "diesel" },
+        showIf: { field: "powerSourceType", values: ["diesel", "solar_diesel"] },
         fields: [
           { id: "genCapacity", label: { ar: "القدرة الفعلية للمولد", en: "Generator Actual Capacity" }, hint: { ar: "kVA", en: "kVA" }, type: "text" },
           { id: "genBrand", label: { ar: "ماركة / نوع المولد", en: "Generator Brand / Type" }, type: "text" },
@@ -316,7 +326,7 @@ const SECTIONS = [
       },
       {
         label: { ar: "محول الشبكة الكهربائية", en: "Grid / Transformer Option" }, accentClass: "subgroup-grid", cols3: true,
-        showIf: { field: "powerSourceType", value: "grid" },
+        showIf: { field: "powerSourceType", values: ["grid", "solar_grid"] },
         fields: [
           { id: "gridVoltage", label: { ar: "جهد الدخول الفعلي المقاس", en: "Measured Actual Input Voltage" }, hint: { ar: "فولت، بين خطين / خط وحيادي", en: "V, L-L / L-N" }, type: "text" },
           { id: "gridFreq", label: { ar: "التردد", en: "Frequency" }, hint: { ar: "هرتز", en: "Hz" }, type: "text" },
@@ -396,7 +406,6 @@ const SECTIONS = [
           { id: "distPanelSource", label: { ar: "المسافة الأفقية: اللوحة إلى مصدر الكهرباء", en: "Horizontal Distance: Panel → Power Source" }, hint: { ar: "متر", en: "meters" }, type: "text" },
           { id: "distPanelPv", label: { ar: "مسافة كابل الألواح الشمسية إلى اللوحة", en: "PV Array Cable Distance to Panel" }, hint: { ar: "متر", en: "meters" }, type: "text" },
           { id: "routeCondition", label: { ar: "حالة مسار الكابل", en: "Cable Route Condition" }, hint: { ar: "مدفون / خندق / مكشوف، عوائق", en: "buried / trenched / open, obstacles" }, type: "text" },
-          { id: "voltageDrop", label: { ar: "هل مطلوب حساب هبوط الجهد؟", en: "Voltage Drop Calculation Needed?" }, type: "select", options: YN_OPTIONS },
           { id: "cableProtection", label: { ar: "طريقة حماية الكابل", en: "Cable Protection Method" }, hint: { ar: "مواسير / قنوات / دفن مباشر", en: "conduit / duct / direct burial" }, type: "text" },
         ]
       },
